@@ -10,14 +10,15 @@ import os
 import sys
 from datetime import datetime
 
-import httpx
 from dotenv import load_dotenv
+
+load_dotenv()
+
+import httpx
 from playwright.async_api import async_playwright
 
 from utils.config import AccountConfig, AppConfig, load_accounts_config
 from utils.notify import notify
-
-load_dotenv()
 
 BALANCE_HASH_FILE = 'balance_hash.txt'
 
@@ -219,10 +220,10 @@ def format_check_in_notification(detail: dict) -> str:
 	lines = [
 		f'[CHECK-IN] {detail["name"]}',
 		'  ━━━━━━━━━━━━━━━━━━━━',
-		'  📍 签到前',
-		f'     💵 余额: ${detail["before_quota"]:.2f}  |  📊 累计消耗: ${detail["before_used"]:.2f}',
-		'  📍 签到后',
-		f'     💵 余额: ${detail["after_quota"]:.2f}  |  📊 累计消耗: ${detail["after_used"]:.2f}',
+		'  [签到前]',
+		f'     余额: ${detail["before_quota"]:.2f}  |  累计消耗: ${detail["before_used"]:.2f}',
+		'  [签到后]',
+		f'     余额: ${detail["after_quota"]:.2f}  |  累计消耗: ${detail["after_used"]:.2f}',
 	]
 
 	# 判断是否有变化
@@ -234,24 +235,24 @@ def format_check_in_notification(detail: dict) -> str:
 
 		# 已签到但期间有使用
 		if not has_reward and has_usage:
-			lines.append('  ℹ️  今日已签到（期间有使用）')
+			lines.append('  [提示] 今日已签到（期间有使用）')
 
 		# 签到获得
 		if has_reward:
-			lines.append(f'  🎁 签到获得: +${detail["check_in_reward"]:.2f}')
+			lines.append(f'  [签到获得] +${detail["check_in_reward"]:.2f}')
 
 		# 期间消耗
 		if has_usage:
-			lines.append(f'  📉 期间消耗: ${detail["usage_increase"]:.2f}')
+			lines.append(f'  [期间消耗] ${detail["usage_increase"]:.2f}')
 
 		# 余额变化
 		if detail['balance_change'] != 0:
 			change_symbol = '+' if detail['balance_change'] > 0 else ''
-			change_emoji = '📈' if detail['balance_change'] > 0 else '📉'
-			lines.append(f'  {change_emoji} 余额变化: {change_symbol}${detail["balance_change"]:.2f}')
+			change_type = '增加' if detail['balance_change'] > 0 else '减少'
+			lines.append(f'  [余额{change_type}] {change_symbol}${detail["balance_change"]:.2f}')
 	else:
 		# 无任何变化
-		lines.extend(['  ━━━━━━━━━━━━━━━━━━━━', '  ℹ️  今日已签到，无变化'])
+		lines.extend(['  ━━━━━━━━━━━━━━━━━━━━', '  [提示] 今日已签到，无变化'])
 
 	return '\n'.join(lines)
 
