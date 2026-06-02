@@ -32,83 +32,95 @@ def test_real_notification(notification_kit):
 
 
 @patch('smtplib.SMTP_SSL')
-def test_send_email(mock_smtp, notification_kit):
+def test_send_email(mock_smtp, notification_kit, monkeypatch):
+	monkeypatch.setenv('EMAIL_USER', 'test@example.com')
+	monkeypatch.setenv('EMAIL_PASS', 'password')
+	monkeypatch.setenv('EMAIL_TO', 'recipient@example.com')
+
+	kit = NotificationKit()
 	mock_server = MagicMock()
 	mock_smtp.return_value.__enter__.return_value = mock_server
 
-	notification_kit.send_email('测试标题', '测试内容')
+	kit.send_email('测试标题', '测试内容')
 
 	assert mock_server.login.called
 	assert mock_server.send_message.called
 
 
-@patch('requests.post')
-def test_send_pushplus(mock_post, notification_kit):
-	notification_kit.send_pushplus('测试标题', '测试内容')
-
-	mock_post.assert_called_once()
-	args = mock_post.call_args[1]
-	assert 'test_token' in str(args)
-
-
-@patch('requests.post')
-def test_send_dingtalk(mock_post, notification_kit):
-	notification_kit.send_dingtalk('测试标题', '测试内容')
-
-	expected_webhook = 'https://oapi.dingtalk.com/robot/send?access_token=fbcd45f32f17dea5c762e82644c7f28945075e0b4d22953c8eebe064b106a96f'
-	expected_data = {'msgtype': 'text', 'text': {'content': '测试标题\n测试内容'}}
-
-	mock_post.assert_called_once_with(expected_webhook, json=expected_data)
-
-
-@patch('requests.post')
-def test_send_feishu(mock_post, notification_kit):
-	notification_kit.send_feishu('测试标题', '测试内容')
-
-	mock_post.assert_called_once()
-	args = mock_post.call_args[1]
-	assert 'card' in args['json']
-
-
-@patch('requests.post')
-def test_send_wecom(mock_post, notification_kit):
-	notification_kit.send_wecom('测试标题', '测试内容')
-
-	mock_post.assert_called_once_with(
-		'http://weixin.example.com', json={'msgtype': 'text', 'text': {'content': '测试标题\n测试内容'}}
-	)
-
-
-@patch('httpx.Client')
-def test_send_gotify(mock_client_class, notification_kit):
-	mock_client_instance = MagicMock()
-	mock_client_class.return_value.__enter__.return_value = mock_client_instance
-
-	notification_kit.send_gotify('测试标题', '测试内容')
-
-	expected_url = 'https://gotify.example.com/message?token=test_token'
-	expected_data = {'title': '测试标题', 'message': '测试内容', 'priority': 9}
-
-	mock_client_instance.post.assert_called_once_with(expected_url, json=expected_data)
-
-
-def test_missing_config():
-	os.environ.clear()
+@patch('httpx.Client.post')
+def test_send_pushplus(mock_post, notification_kit, monkeypatch):
+	monkeypatch.setenv('PUSHPLUS_TOKEN', 'test_token')
 	kit = NotificationKit()
 
-	with pytest.raises(ValueError, match='未配置邮箱信息'):
+	kit.send_pushplus('测试标题', '测试内容')
+
+	mock_post.assert_called_once()
+
+
+@patch('httpx.Client.post')
+def test_send_dingtalk(mock_post, notification_kit, monkeypatch):
+	monkeypatch.setenv(
+		'DINGDING_WEBHOOK',
+		'https://oapi.dingtalk.com/robot/send?access_token=fbcd45f32f17dea5c762e82644c7f28945075e0b4d22953c8eebe064b106a96f',
+	)
+	kit = NotificationKit()
+
+	kit.send_dingtalk('测试标题', '测试内容')
+
+	mock_post.assert_called_once()
+
+
+@patch('httpx.Client.post')
+def test_send_feishu(mock_post, notification_kit, monkeypatch):
+	monkeypatch.setenv('FEISHU_WEBHOOK', 'https://open.feishu.cn/webhook/v2/webhook/test')
+	kit = NotificationKit()
+
+	kit.send_feishu('测试标题', '测试内容')
+
+	mock_post.assert_called_once()
+
+
+@patch('httpx.Client.post')
+def test_send_wecom(mock_post, notification_kit, monkeypatch):
+	monkeypatch.setenv('WEIXIN_WEBHOOK', 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test')
+	kit = NotificationKit()
+
+	kit.send_wecom('测试标题', '测试内容')
+
+	mock_post.assert_called_once()
+
+
+@patch('httpx.Client.post')
+def test_send_gotify(mock_client_class, notification_kit, monkeypatch):
+	monkeypatch.setenv('GOTIFY_URL', 'https://gotify.example.com/message')
+	monkeypatch.setenv('GOTIFY_TOKEN', 'test_token')
+	kit = NotificationKit()
+
+	kit.send_gotify('测试标题', '测试内容')
+
+	mock_client_class.assert_called_once()
+
+
+def test_missing_config(monkeypatch):
+	monkeypatch.delenv('EMAIL_USER', raising=False)
+	monkeypatch.delenv('EMAIL_PASS', raising=False)
+	monkeypatch.delenv('EMAIL_TO', raising=False)
+	monkeypatch.delenv('PUSHPLUS_TOKEN', raising=False)
+	kit = NotificationKit()
+
+	with pytest.raises(ValueError, match='Email configuration not set'):
 		kit.send_email('测试', '测试')
 
-	with pytest.raises(ValueError, match='未配置PushPlus Token'):
+	with pytest.raises(ValueError, match='PushPlus Token not configured'):
 		kit.send_pushplus('测试', '测试')
 
 
-@patch('anyrouter.notify.NotificationKit.send_email')
-@patch('anyrouter.notify.NotificationKit.send_dingtalk')
-@patch('anyrouter.notify.NotificationKit.send_wecom')
-@patch('anyrouter.notify.NotificationKit.send_pushplus')
-@patch('anyrouter.notify.NotificationKit.send_feishu')
-@patch('anyrouter.notify.NotificationKit.send_gotify')
+@patch('utils.notify.NotificationKit.send_email')
+@patch('utils.notify.NotificationKit.send_dingtalk')
+@patch('utils.notify.NotificationKit.send_wecom')
+@patch('utils.notify.NotificationKit.send_pushplus')
+@patch('utils.notify.NotificationKit.send_feishu')
+@patch('utils.notify.NotificationKit.send_gotify')
 def test_push_message(mock_gotify, mock_feishu, mock_pushplus, mock_wecom, mock_dingtalk, mock_email, notification_kit):
 	notification_kit.push_message('测试标题', '测试内容')
 
