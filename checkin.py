@@ -77,7 +77,7 @@ async def get_waf_cookies_with_playwright(account_name: str, login_url: str, req
 			context = await p.chromium.launch_persistent_context(
 				user_data_dir=temp_dir,
 				headless=True,
-				user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
+				user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
 				viewport={'width': 1920, 'height': 1080},
 				args=[
 					'--disable-blink-features=AutomationControlled',
@@ -85,6 +85,8 @@ async def get_waf_cookies_with_playwright(account_name: str, login_url: str, req
 					'--disable-web-security',
 					'--disable-features=VizDisplayCompositor',
 					'--no-sandbox',
+					'--start-maximized',
+					'--enable-javascript',
 				],
 			)
 
@@ -96,9 +98,11 @@ async def get_waf_cookies_with_playwright(account_name: str, login_url: str, req
 				await page.goto(login_url, wait_until='networkidle')
 
 				try:
-					await page.wait_for_function('document.readyState === "complete"', timeout=5000)
+					await page.wait_for_function('document.readyState === "complete"', timeout=10000)
 				except Exception:
-					await page.wait_for_timeout(3000)
+					pass
+
+				await page.wait_for_timeout(5000)
 
 				cookies = await page.context.cookies()
 
@@ -109,20 +113,17 @@ async def get_waf_cookies_with_playwright(account_name: str, login_url: str, req
 					if cookie_name in required_cookies and cookie_value is not None:
 						waf_cookies[cookie_name] = cookie_value
 
-				print(f'[INFO] {account_name}: Got {len(waf_cookies)} WAF cookies')
+				print(f'[INFO] {account_name}: Got {len(waf_cookies)}/{len(required_cookies)} WAF cookies: {list(waf_cookies.keys())}')
 
 				missing_cookies = [c for c in required_cookies if c not in waf_cookies]
 
 				if missing_cookies:
-					print(f'[FAILED] {account_name}: Missing WAF cookies: {missing_cookies}')
-					await context.close()
-					return None
-
-				print(f'[SUCCESS] {account_name}: Successfully got all WAF cookies')
+					print(f'[WARNING] {account_name}: Missing WAF cookies: {missing_cookies}')
+					print(f'[INFO] {account_name}: Continuing with available cookies...')
 
 				await context.close()
 
-				return waf_cookies
+				return waf_cookies if waf_cookies else None
 
 			except Exception as e:
 				print(f'[FAILED] {account_name}: Error occurred while getting WAF cookies: {e}')

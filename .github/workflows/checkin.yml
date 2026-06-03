@@ -69,20 +69,6 @@ jobs:
         restore-keys: |
           balance-hash-
 
-    - name: 调试环境变量
-      env:
-        ANYROUTER_ACCOUNTS: ${{ secrets.ANYROUTER_ACCOUNTS }}
-        DINGDING_WEBHOOK: ${{ secrets.DINGDING_WEBHOOK }}
-      run: |
-        Write-Host "=== 环境变量调试信息 ==="
-        Write-Host "ANYROUTER_ACCOUNTS 已设置: $($env:ANYROUTER_ACCOUNTS -ne $null)"
-        Write-Host "ANYROUTER_ACCOUNTS 长度: $($env:ANYROUTER_ACCOUNTS.Length)"
-        if ($env:ANYROUTER_ACCOUNTS) {
-            Write-Host "ANYROUTER_ACCOUNTS 前200字符: $($env:ANYROUTER_ACCOUNTS.Substring(0, [Math]::Min(200, $env:ANYROUTER_ACCOUNTS.Length)))"
-        }
-        Write-Host "DINGDING_WEBHOOK 已设置: $($env:DINGDING_WEBHOOK -ne $null)"
-        Write-Host "=== 调试信息结束 ==="
-
     - name: 执行签到
       env:
         ANYROUTER_ACCOUNTS: ${{ secrets.ANYROUTER_ACCOUNTS }}
