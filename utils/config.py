@@ -93,8 +93,8 @@ class AppConfig:
 				sign_in_path=None,  # 无需签到接口，查询用户信息时自动完成签到
 				user_info_path='/api/user/self',
 				api_user_key='new-api-user',
-				bypass_method=None,
-				waf_cookie_names=None,
+				bypass_method='waf_cookies',  # 必须启用 WAF bypass，否则 GitHub Actions 环境会被拦截
+				waf_cookie_names=['acw_tc', 'cdn_sec_tc', 'acw_sc__v2'],
 			),
 		}
 
